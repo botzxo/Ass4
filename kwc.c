@@ -5,6 +5,7 @@
 #include <assert.h>
 #include "multimap.h"
 
+#define CRT_SECURE_NO_WARNINGS
 #define MAX_PARA 20000
 #define MAX_STOP_LENGTH 1000
 #define MAX_ENTRY_LENGTH 20
@@ -70,7 +71,7 @@ int compareWordListWithStopList(words word_list[], char *stop_list, char *word_f
 
 
 int process_word(char *stop_list, words words_list[], char* context_string, int word_index){
-    char *word_found;
+    char *word_found = NULL;
     int word_found_index = compareWordListWithStopList(words_list, stop_list, word_found, word_index);
 
     if(word_found_index==-1){
@@ -142,73 +143,89 @@ void print_kwc(Multimap *index){
     }
 }
 
-
-
-int process_kwc(FILE *file, FILE *stoplist){
-    char paragraph[MAX_PARA];
+char* read_stop_words(FILE* stoplist) {
     char stop_word[MAX_KEY_LENGTH];
-    char stopListWords[MAX_STOP_LENGTH] = "";
+    char* stopListWords = (char*)calloc(MAX_STOP_LENGTH, sizeof(char));
+    if (stopListWords == NULL) {
+        // Handle allocation error
+        return NULL;
+    }
+
     int num_stop_words = 0;
-    
-    while (fscanf(stoplist, "%s", stop_word) == 1 && num_stop_words<MAX_STOP_LENGTH) {
+    while (fscanf(stoplist, "%s", stop_word) == 1 && num_stop_words < MAX_STOP_LENGTH) {
         strcat(stopListWords, stop_word);
         strcat(stopListWords, " ");
         num_stop_words++;
     }
 
-    Multimap *index;
-    
-    int para_number = 0;
-    index = mm_create(MAX_ENTRY_LENGTH);
+    return stopListWords;
+}
 
+int process_paragraph(char* paragraph, Multimap* index, char* stopListWords, int para_number) {
+    char context_string[MAX_VALUE_LENGTH];
+    words* words_from_para = (words*)malloc(MAX_PARA * sizeof(words));
+    if (words_from_para == NULL) {
+        // Handle allocation error
+        return -1;
+    }
+
+    // Tokenize and process words here...
+    // ...
+
+    free(words_from_para);
+    return 0; // Or appropriate return value
+}
+
+
+int process_kwc(FILE* file, FILE* stoplist) {
+    char* stopListWords = read_stop_words(stoplist);
+    if (stopListWords == NULL) {
+        // Handle error
+        return -1;
+    }
+
+    Multimap* index = mm_create(MAX_ENTRY_LENGTH);
     assert(validate_mm(index));
 
-    while(read_paragraph(file, paragraph, &para_number)){
-        
-        int word_count = 0;
-        char *token = strtok(paragraph, " ");
-        words words_from_para[MAX_PARA];
-        
-        while(token != NULL && word_count<MAX_PARA){
-            if(is_word(token[0])){
-                strncpy(words_from_para[word_count].word, token, MAX_KEY_LENGTH);
-                word_count++;
-                (words_from_para->size)++;
-            }
-            
-            token = strtok(NULL, " ");
-        }
-        char context_string[MAX_VALUE_LENGTH];
-        int word_index = 0;
-       
-        //at this point we have an array of words from the paragraph (words_from_para)
-       
-
-        while(word_index < words_from_para->size){
-            word_index = process_word(stopListWords, words_from_para, context_string, word_index);
-            if(word_index == -1){
-                return -1;
-            }
-            mm_insert_value(index, words_from_para[word_index].word, para_number, context_string);
-            word_index++;
-        }
-
-        // remove_words(index, 2);
-        print_kwc(index);
-        return 0;
+    char* paragraph = (char*)malloc(MAX_PARA * sizeof(char));
+    if (paragraph == NULL) {
+        // Handle allocation error
+        free(stopListWords);
+        return -1;
     }
+
+    int para_number = 0;
+    while (read_paragraph(file, paragraph, &para_number)) {
+        if (process_paragraph(paragraph, index, stopListWords, para_number) == -1) {
+            // Handle error
+            free(paragraph);
+            free(stopListWords);
+            return -1;
+        }
+    }
+
+    // Clean up and print results
+    free(paragraph);
+    free(stopListWords);
+
+    return 0;
 }
+
+
+
 
 int main() {
     printf("Hello Code\n");
-    FILE *para_file = fopen("paratest.txt", "r");
-    FILE *stop_file = fopen("stoplist.txt", "r");
+    FILE* para_file;
+    para_file= fopen("paratest.txt", "r");
+    FILE* stop_file;
+    stop_file = fopen("stoplist.txt", "r");
     if (para_file == NULL || stop_file == NULL) {
         printf("Error opening file.\n");
         return 1;
     }
 
-    process_kwc(para_file, stop_file);
+    int ret2 = process_kwc( para_file,  stop_file);
 
     fclose(para_file);
     fclose(stop_file);
