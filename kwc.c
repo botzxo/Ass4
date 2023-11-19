@@ -171,9 +171,32 @@ int process_paragraph(char* paragraph, Multimap* index, char* stopListWords, int
 
     // Tokenize and process words here...
     // ...
+    int word_count = 0;
+    char* token = strtok(paragraph, " ");
+
+    while (token != NULL && word_count < MAX_PARA) {
+        if (is_word(token[0])) {
+            strncpy(words_from_para[word_count].word, token, MAX_KEY_LENGTH);
+            word_count++;
+            (words_from_para->size)++;
+        }
+
+        token = strtok(NULL, " ");
+    }
+    int word_index = 0;
+    while (word_index < words_from_para->size) {
+        word_index = process_word(stopListWords, words_from_para, context_string, word_index);
+        if (word_index == -1) {
+            return -1;
+        }
+        mm_insert_value(index, words_from_para[word_index].word, para_number, context_string);
+        word_index++;
+    }
+
+
 
     free(words_from_para);
-    return 0; // Or appropriate return value
+    return word_index; // Or appropriate return value
 }
 
 
@@ -196,12 +219,17 @@ int process_kwc(FILE* file, FILE* stoplist) {
 
     int para_number = 0;
     while (read_paragraph(file, paragraph, &para_number)) {
-        if (process_paragraph(paragraph, index, stopListWords, para_number) == -1) {
+        int ret = process_paragraph(paragraph, index, stopListWords, para_number);
+        if (ret == -1) {
             // Handle error
             free(paragraph);
             free(stopListWords);
             return -1;
         }
+        else {
+            print_kwc(index);
+        }
+
     }
 
     // Clean up and print results
